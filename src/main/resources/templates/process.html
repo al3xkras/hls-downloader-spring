@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>index</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+</head>
+<body style="background: black">
+<div class="iframeWrapper">
+    <iframe id="ifr" th:src="${videoUrl}" width="607" height="360" frameborder="0" AllowFullScreen allow="autoplay *; fullscreen *"></iframe>
+</div>
+<script>
+    let ifr=document.getElementById("ifr")
+    ifr.offsetWidth=document.querySelector("body").offsetWidth
+    ifr.offsetHeight=document.querySelector("body").offsetHeight
+</script>
+</body>
+</html>

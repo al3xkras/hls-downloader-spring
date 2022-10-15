@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>index</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-
+    <title>Index</title>
 </head>
 <body>
-
-<div id="div1">
-    <iframe id="ifr" src="link" width="607" height="360" frameborder="0" AllowFullScreen allow="autoplay *; fullscreen *"></iframe>
-</div>
-
+<form th:object="${videoDTO}" th:action="@{/process}" method="post">
+    <label for="url">Video URL: </label>
+    <input type="text" name="url" id="url" th:field="*{url}">
+    <label for="name">Output file: </label>
+    <input type="text" name="name" id="name" th:field="*{filename}">
+    <button type="submit">Submit</button>
+</form>
 </body>
 </html>
