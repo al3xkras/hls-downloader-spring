@@ -1,6 +1,7 @@
 **/.ipynb_checkpoints/
 *.exe
-
+*.mp4
+*.part
 HELP.md
 target/
 !.mvn/wrapper/maven-wrapper.jar
