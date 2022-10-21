@@ -10,12 +10,14 @@
 	</parent>
 	<groupId>com.al3xkras</groupId>
 	<artifactId>hls-downloader</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0</version>
 	<name>hls-downloader</name>
 	<description>Custom HLS Downloader</description>
+
 	<properties>
 		<java.version>17</java.version>
 	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

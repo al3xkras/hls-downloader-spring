@@ -45,6 +45,7 @@ public class Main {
         ChromeOptions options = new ChromeOptions();
         options.setCapability("proxy", seleniumProxy);
         options.addArguments("--ignore-certificate-errors");
+        options.addArguments("--headless");
         ChromeDriver chromeDriver = new ChromeDriver(options);
 
         proxy.enableHarCaptureTypes(CaptureType.REQUEST_CONTENT, CaptureType.RESPONSE_CONTENT);
@@ -85,6 +86,10 @@ public class Main {
             s=s.substring(index+URL_SEARCH.length());
 
             int urlStart=url.indexOf(HTTP);
+            if (urlStart<0){
+                System.err.println(url);
+                continue;
+            }
             String pre = url.substring(0,urlStart).toLowerCase();
             String actualUrl=url.substring(urlStart);
             videoUrl[0]=actualUrl;
@@ -101,6 +106,8 @@ public class Main {
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
         Process youtubeDl = pb.start();
+
+        chromeDriver.close();
 
         assert youtubeDl.waitFor()==0;
     }
