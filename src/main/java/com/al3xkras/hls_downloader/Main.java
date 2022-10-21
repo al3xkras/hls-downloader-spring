@@ -21,15 +21,17 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.function.BiConsumer;
 
 @Slf4j
 public class Main {
     private static final int URL_MAX_SIZE=200;
     private static final String URL_SEARCH="m3u8";
-    private static final String CMD_YTDL="youtube-dl --all-subs -f mp4 -o \"%s\" \"%s\"";
     private static final String HTTP="http";
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void download(
+            String[] args, BiConsumer<Process,BufferedReader> processOutput)
+            throws InterruptedException, IOException {
 
         assert args.length>=2;
         String webpageUrl = args[0];
@@ -58,7 +60,7 @@ public class Main {
 
         chromeDriver.get(webpageUrl);
 
-        new WebDriverWait(chromeDriver, Duration.ofMillis(10000))
+        new WebDriverWait(chromeDriver, Duration.ofMillis(30000))
                 .until(d->d.findElements(By.tagName("iframe")));
 
         WebElement el= chromeDriver.findElements(By.tagName("iframe")).get(0);
@@ -79,7 +81,7 @@ public class Main {
 
         int index;
 
-        String videoUrl[] = new String[]{null};
+        String[] videoUrl = new String[]{null};
 
         while ((index=s.indexOf(URL_SEARCH))>0){
             String url = s.substring(index-URL_MAX_SIZE,index+URL_SEARCH.length());
@@ -102,13 +104,18 @@ public class Main {
                 "\""+videoUrl[0]+"\"");
 
         pb.directory(new File(System.getProperty("user.dir")));
+
+        //File tempFile = File.createTempFile("hls", "-log");
+        //pb.redirectOutput(ProcessBuilder.Redirect.to(tempFile));
         pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
         Process youtubeDl = pb.start();
 
-        chromeDriver.close();
+        //BufferedReader reader = new BufferedReader(new FileReader(tempFile));
+        //processOutput.accept(youtubeDl,reader);
 
+        chromeDriver.close();
         assert youtubeDl.waitFor()==0;
     }
 }
