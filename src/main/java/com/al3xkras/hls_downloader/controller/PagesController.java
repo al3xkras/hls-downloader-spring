@@ -31,9 +31,6 @@ import java.util.List;
 @Controller
 public class PagesController {
     @Autowired
-    private ApplicationEventPublisher applicationEventPublisher;
-
-    @Autowired
     CustomConsumer readerConsumer;
     @Autowired
     ApplicationEventPublisher publisher;

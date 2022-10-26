@@ -19,7 +19,11 @@
 </form>
 <br/><br/><br/>
 <form th:action="@{/quit}" method="post">
-    <button type="submit">quit</button>
+    <button type="submit">quit (soft)</button>
+</form>
+<br/>
+<form action="/quit?force=true" method="post">
+    <button type="submit">quit (force)</button>
 </form>
 </body>
 </html>
