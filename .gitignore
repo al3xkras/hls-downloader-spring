@@ -5,6 +5,7 @@ hls-downloader**.jar
 **/.ipynb_checkpoints/
 *.exe
 *.mp4
+*.crx
 *.part
 HELP.md
 target/

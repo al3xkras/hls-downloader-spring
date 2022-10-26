@@ -63,8 +63,12 @@ public class PagesController {
                           HttpServletRequest request){
         String webpageUrl = videoDTO.getUrl();
         String filename=videoDTO.getFilename();
-        String mainUrl = "http://localhost:10001"+request.getRequestURI()+"?videoUrl="+webpageUrl;
-
+        String mainUrl;
+        if (videoDTO.getIsframe()){
+            mainUrl="http://localhost:10001"+request.getRequestURI()+"?videoUrl="+webpageUrl;
+        } else {
+            mainUrl=webpageUrl;
+        }
         hlsDownloadEvents.set(0, new HlsDownloadEvent(webpageUrl, filename, mainUrl));
         return "redirect:/splash";
     }
@@ -76,7 +80,6 @@ public class PagesController {
         if (event==null)
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
         log.info(event.toString());
-
 
         assert !event.isCompleted();
 

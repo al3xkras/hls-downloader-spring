@@ -14,5 +14,5 @@ import java.io.Serializable;
 public class VideoDTO implements Serializable {
     private String url;
     private String filename;
-
+    private Boolean isframe;
 }

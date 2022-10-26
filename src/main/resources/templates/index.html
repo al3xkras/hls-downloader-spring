@@ -8,8 +8,13 @@
 <form th:object="${videoDTO}" th:action="@{/process}" method="post">
     <label for="url">Video URL: </label>
     <input type="text" name="url" id="url" th:field="*{url}">
+    <br/><br/>
     <label for="name">Output file: </label>
     <input type="text" name="name" id="name" th:field="*{filename}">
+    <br/><br/>
+    <label for="isframe">Iframe content?</label>
+    <input type="checkbox" name="isframe" id="isframe" th:field="*{isframe}">
+    <br/><br/>
     <button type="submit">Submit</button>
 </form>
 </body>
