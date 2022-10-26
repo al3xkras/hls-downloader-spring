@@ -1,5 +1,6 @@
 package com.al3xkras.hls_downloader.controller;
 
+import com.al3xkras.hls_downloader.HlsDownloaderApplication;
 import com.al3xkras.hls_downloader.VideoDownloader;
 import com.al3xkras.hls_downloader.config.ShutdownManager;
 import com.al3xkras.hls_downloader.dto.VideoDTO;
@@ -109,8 +110,18 @@ public class PagesController {
                     }
                 }
             }
-            VideoDownloader.activeDownloads.forEach(Process::destroy);
-            VideoDownloader.activeDownloads.clear();
+            VideoDownloader.activeDownloads.forEach(process -> {
+                if (HlsDownloaderApplication.os.contains("win")){
+                    try {
+                        Runtime.getRuntime().exec("taskkill /PID "+process.pid()+" /F");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        process.destroy();
+                    }
+                } else {
+                    process.destroy();
+                }
+            });
             manager.initiateShutdown(0);
         }).start();
     }
