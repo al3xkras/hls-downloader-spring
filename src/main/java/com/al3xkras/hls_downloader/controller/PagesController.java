@@ -90,7 +90,7 @@ public class PagesController {
         assert !event.isCompleted();
         Thread t = new Thread(()->{
             try {
-                VideoDownloader.download(new String[]{event.getMainUrl(),event.getFilename()},readerConsumer);
+                VideoDownloader.download(new String[]{event.getMainUrl(),event.getFilename()},readerConsumer, null, null);
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);
             }

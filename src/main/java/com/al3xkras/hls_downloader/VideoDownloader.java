@@ -44,14 +44,7 @@ public class VideoDownloader {
 
     public static final Deque<Process> activeDownloads = new ConcurrentLinkedDeque<>();
 
-    public static void download(
-            String[] args, BiConsumer<Process,BufferedReader> processOutput)
-            throws InterruptedException, IOException {
-
-        assert args.length>=2;
-        String webpageUrl = args[0];
-        String filename=args[1];
-
+    private static BrowserUpProxy setupProxy(){
         BrowserUpProxy proxy = new BrowserUpProxyServer();
 
         Set<CaptureType> captureTypes = new HashSet<>(Arrays.asList(
@@ -59,29 +52,45 @@ public class VideoDownloader {
         ));
         proxy.start(19091);
         proxy.setHarCaptureTypes(captureTypes);
-        Proxy seleniumProxy = ClientUtil.createSeleniumProxy(proxy);
 
+        proxy.enableHarCaptureTypes(captureTypes);
+        proxy.newHar("har0");
+
+        return proxy;
+    }
+
+    private static ChromeDriver setupDriver(Proxy proxy){
         WebDriverManager.chromedriver().setup();
         ChromeOptions options = new ChromeOptions();
-        options.setCapability("proxy", seleniumProxy);
+        options.setCapability("proxy", proxy);
         options.addArguments("--ignore-certificate-errors");
-        options.addArguments("--silent");
+        options.addArguments("--disable-web-security");
         options.addArguments("--mute-audio");
         //options.addExtensions(new File("./adblock.crx"));
         //options.addArguments("--disable-popup-blocking");
-        options.addArguments("--headless");
+        //options.addArguments("--headless");
+
         ChromeDriver chromeDriver = new ChromeDriver(options);
-
-        proxy.enableHarCaptureTypes(captureTypes);
-
-        proxy.newHar("har0");
 
         DevTools devTools = chromeDriver.getDevTools();
         devTools.createSession();
         devTools.send(new Command<>("Network.enable", ImmutableMap.of()));
 
-        chromeDriver.get(webpageUrl);
+        return chromeDriver;
+    }
+    public static void download(String[] args, BiConsumer<Process,BufferedReader> processOutput,
+                                ChromeDriver driver, BrowserUpProxy pr)
+            throws InterruptedException, IOException {
 
+        assert args.length>=2;
+        String webpageUrl = args[0];
+        String filename=args[1];
+
+        BrowserUpProxy proxy = pr==null?setupProxy():pr;
+        Proxy seleniumProxy = ClientUtil.createSeleniumProxy(proxy);
+        ChromeDriver chromeDriver = driver==null?setupDriver(seleniumProxy):driver;
+
+        chromeDriver.get(webpageUrl);
 
         WebDriverWait wait = new WebDriverWait(chromeDriver, Duration.ofMillis(timeout));
         Actions actions = new Actions(chromeDriver);
@@ -108,16 +117,30 @@ public class VideoDownloader {
         new WebDriverWait(chromeDriver, Duration.ofMillis(loops*timeout))
                 .until(d->d.findElements(By.tagName("iframe")));
 
-        WebElement el= chromeDriver.findElements(By.tagName("iframe")).get(0);
+        WebElement iframe = chromeDriver.findElements(By.tagName("iframe")).get(0);
+
+        String iframeSource = iframe.getAttribute("src");
+
+        if (!webpageUrl.startsWith("http://localhost")){
+            log.warn(webpageUrl);
+            log.warn(iframeSource);
+            download(new String[]{
+                    "http://localhost:10001/process?videoUrl="+iframeSource,
+                    filename
+            },null, driver, proxy);
+            return;
+        }
 
         try {
-            actions.moveToElement(el, 10, 25)
+            actions.moveToElement(iframe, 10, 25)
                     .click().build().perform();
         } catch (RuntimeException e){
             e.printStackTrace();
         }
 
         Thread.sleep((loops-i) * timeout);
+
+        Thread.sleep(50000);
 
         Har har = proxy.getHar();
         proxy.stop();
