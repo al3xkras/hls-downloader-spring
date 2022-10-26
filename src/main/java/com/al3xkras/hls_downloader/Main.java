@@ -145,7 +145,16 @@ public class Main {
         log.info(rawUrls.toString());
         log.info(videoUrls.toString());
 
-        String videoUrl = videoUrls.get(videoUrls.size()-1).toString();
+        String videoUrl;
+
+        if (webpageUrl.contains("youtube.com")){
+            videoUrl=webpageUrl;
+        } else if (!videoUrls.isEmpty()){
+            videoUrl=videoUrls.get(videoUrls.size()-1).toString();
+        } else {
+            log.error("unable to download: no video source found.");
+            return;
+        }
 
         ProcessBuilder pb = new ProcessBuilder("youtube-dl",
                 "--all-subs" , "-f" , "mp4", "-o" , "\""+filename+"\"" ,
