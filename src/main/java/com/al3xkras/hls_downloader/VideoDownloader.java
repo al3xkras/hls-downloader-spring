@@ -24,12 +24,13 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
-public class Main {
+public class VideoDownloader {
     private static final int URL_MIN_SIZE=20;
     private static final int URL_MAX_SIZE=500;
     private static final Pattern M3U8 =Pattern.compile("http.{"+URL_MIN_SIZE+","+URL_MAX_SIZE+"}m3u8");
@@ -40,6 +41,8 @@ public class Main {
     );
     private static final long timeout = 1000L;
     private static final int loops = 10;
+
+    public static final Deque<Process> activeDownloads = new ConcurrentLinkedDeque<>();
 
     public static void download(
             String[] args, BiConsumer<Process,BufferedReader> processOutput)
@@ -166,10 +169,11 @@ public class Main {
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
         Process youtubeDl = pb.start();
-
+        activeDownloads.add(youtubeDl);
         for (String handle:chromeDriver.getWindowHandles()){
             chromeDriver.switchTo().window(handle).close();
         }
         assert youtubeDl.waitFor()==0;
+        activeDownloads.remove(youtubeDl);
     }
 }

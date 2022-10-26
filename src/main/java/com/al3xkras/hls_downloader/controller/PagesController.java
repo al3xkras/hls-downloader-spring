@@ -1,13 +1,17 @@
 package com.al3xkras.hls_downloader.controller;
 
-import com.al3xkras.hls_downloader.Main;
+import com.al3xkras.hls_downloader.VideoDownloader;
+import com.al3xkras.hls_downloader.config.ShutdownManager;
 import com.al3xkras.hls_downloader.dto.VideoDTO;
 import com.al3xkras.hls_downloader.event.HlsDownloadEvent;
+import com.al3xkras.hls_downloader.event.QuitEvent;
 import com.al3xkras.hls_downloader.model.CustomConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -31,6 +35,10 @@ public class PagesController {
 
     @Autowired
     CustomConsumer readerConsumer;
+    @Autowired
+    ApplicationEventPublisher publisher;
+    @Autowired
+    ShutdownManager manager;
 
     @Resource(name = "downloadEvent")
     List<HlsDownloadEvent> hlsDownloadEvents;
@@ -82,15 +90,40 @@ public class PagesController {
         log.info(event.toString());
 
         assert !event.isCompleted();
-
         Thread t = new Thread(()->{
             try {
-                Main.download(new String[]{event.getMainUrl(),event.getFilename()},readerConsumer);
+                VideoDownloader.download(new String[]{event.getMainUrl(),event.getFilename()},readerConsumer);
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);
             }
         });
         t.start();
         return "splash";
+    }
+
+    @EventListener(classes = QuitEvent.class)
+    public void quit(QuitEvent event){
+        new Thread(()->{
+            long start = System.currentTimeMillis();
+            if (!event.isForceStop()) {
+                while (System.currentTimeMillis() - start < event.getShutdownTimeout()) {
+                    if (VideoDownloader.activeDownloads.isEmpty()) {
+                        break;
+                    }
+                }
+            }
+            VideoDownloader.activeDownloads.forEach(Process::destroy);
+            VideoDownloader.activeDownloads.clear();
+            manager.initiateShutdown(0);
+        }).start();
+    }
+
+    @PostMapping("/quit")
+    @ResponseStatus(HttpStatus.OK)
+    public void quitEndpoint(@RequestParam(value = "force",required = false) Boolean force,
+                             @RequestParam(value = "timeout",required = false) Integer timeoutMillis){
+        boolean forceStop = force != null && force;
+        int shutdownTimeout = timeoutMillis==null?120000:timeoutMillis;
+        publisher.publishEvent(new QuitEvent(manager,forceStop,shutdownTimeout));
     }
 }
