@@ -66,6 +66,7 @@ public class VideoDownloader {
         options.setCapability("proxy", seleniumProxy);
         options.addArguments("--ignore-certificate-errors");
         options.addArguments("--silent");
+        options.addArguments("--mute-audio");
         //options.addExtensions(new File("./adblock.crx"));
         //options.addArguments("--disable-popup-blocking");
         options.addArguments("--headless");
