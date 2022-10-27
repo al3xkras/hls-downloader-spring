@@ -66,11 +66,24 @@ public class VideoDownloader {
         options.addArguments("--ignore-certificate-errors");
         options.addArguments("--disable-web-security");
         options.addArguments("--mute-audio");
+        options.setCapability("acceptInsecureCerts",true);
+        options.setExperimentalOption("excludeSwitches",Collections.singletonList("enable-automation"));
+        options.setExperimentalOption("useAutomationExtension",false);
+
+
+        options.addArguments("--disable-blink-features=AutomationControlled");
+        options.addArguments("--start-maximized");
         //options.addExtensions(new File("./adblock.crx"));
         //options.addArguments("--disable-popup-blocking");
         //options.addArguments("--headless");
 
         ChromeDriver chromeDriver = new ChromeDriver(options);
+
+        chromeDriver.executeScript("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})");
+        chromeDriver.executeCdpCommand("Network.setUserAgentOverride",ImmutableMap.of(
+                "userAgent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36"
+        ));
+        log.info(chromeDriver.executeScript("return navigator.userAgent;").toString());
 
         DevTools devTools = chromeDriver.getDevTools();
         devTools.createSession();
@@ -120,16 +133,8 @@ public class VideoDownloader {
         WebElement iframe = chromeDriver.findElements(By.tagName("iframe")).get(0);
 
         String iframeSource = iframe.getAttribute("src");
-
-        if (!webpageUrl.startsWith("http://localhost")){
-            log.warn(webpageUrl);
-            log.warn(iframeSource);
-            download(new String[]{
-                    "http://localhost:10001/process?videoUrl="+iframeSource,
-                    filename
-            },null, driver, proxy);
-            return;
-        }
+        if (iframeSource!=null)
+            log.info(iframeSource);
 
         try {
             actions.moveToElement(iframe, 10, 25)
@@ -139,8 +144,6 @@ public class VideoDownloader {
         }
 
         Thread.sleep((loops-i) * timeout);
-
-        Thread.sleep(50000);
 
         Har har = proxy.getHar();
         proxy.stop();
