@@ -87,14 +87,15 @@ public class PagesController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
         log.info(event.toString());
 
-        assert !event.isCompleted();
-        Thread t = new Thread(()->{
-            try {
-                VideoDownloader.download(new String[]{event.getMainUrl(),event.getFilename()},readerConsumer, null, null);
-            } catch (InterruptedException | IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        if (event.isCompleted()){
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        Thread t = new Thread(()-> VideoDownloader.download(
+                new String[]{event.getMainUrl(),event.getFilename()},
+                readerConsumer,
+                null,
+                null
+        ));
         t.start();
         return "splash";
     }

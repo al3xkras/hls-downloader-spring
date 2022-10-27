@@ -1,5 +1,6 @@
 exec.txt
 /series/
+/selenium/
 hls-downloader**.jar
 
 **/.ipynb_checkpoints/

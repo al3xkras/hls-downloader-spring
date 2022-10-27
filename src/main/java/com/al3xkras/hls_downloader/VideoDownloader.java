@@ -8,7 +8,10 @@ import com.browserup.harreader.model.Har;
 import com.google.common.collect.ImmutableMap;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SerializationUtils;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Cookie;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -18,19 +21,26 @@ import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
-public class VideoDownloader {
+public abstract class VideoDownloader {
+    private VideoDownloader(){};
+
     private static final int URL_MIN_SIZE=20;
     private static final int URL_MAX_SIZE=500;
     private static final Pattern M3U8 =Pattern.compile("http.{"+URL_MIN_SIZE+","+URL_MAX_SIZE+"}m3u8");
@@ -40,9 +50,14 @@ public class VideoDownloader {
             MP4
     );
     private static final long timeout = 1000L;
+    private static final long SETUP_TIMEOUT = 60000;
     private static final int loops = 10;
 
     public static final Deque<Process> activeDownloads = new ConcurrentLinkedDeque<>();
+
+    private static boolean isSetupRunning = false;
+    private static boolean canDownload = true;
+    private static final String seleniumProfile = Paths.get("").toAbsolutePath()+"/selenium";
 
     private static BrowserUpProxy setupProxy(){
         BrowserUpProxy proxy = new BrowserUpProxyServer();
@@ -59,10 +74,11 @@ public class VideoDownloader {
         return proxy;
     }
 
-    private static ChromeDriver setupDriver(Proxy proxy){
+    private static ChromeDriver setupDriver(Proxy proxy, String profileDir, boolean headless){
         WebDriverManager.chromedriver().setup();
         ChromeOptions options = new ChromeOptions();
-        options.setCapability("proxy", proxy);
+        if (proxy!=null)
+            options.setCapability("proxy", proxy);
         options.addArguments("--ignore-certificate-errors");
         options.addArguments("--disable-web-security");
         options.addArguments("--mute-audio");
@@ -75,7 +91,12 @@ public class VideoDownloader {
         options.addArguments("--start-maximized");
         //options.addExtensions(new File("./adblock.crx"));
         //options.addArguments("--disable-popup-blocking");
-        options.addArguments("--headless");
+        if (headless)
+            options.addArguments("--headless");
+        if (profileDir!=null) {
+            options.addArguments("--user-data-dir="+profileDir);
+            options.addArguments("--profile-directory=Default");
+        }
 
         ChromeDriver chromeDriver = new ChromeDriver(options);
 
@@ -91,7 +112,74 @@ public class VideoDownloader {
 
         return chromeDriver;
     }
+
+    public static void setupCookies(String webpageUrl){
+        if (!canSetup()){
+            throw new IllegalStateException("setup is unavailable");
+        }
+        ChromeDriver chromeDriver = setupDriver(null, seleniumProfile, false);
+
+        chromeDriver.get(webpageUrl);
+        long time0 = System.currentTimeMillis();
+        isSetupRunning=true;
+        try {
+            String initialHandle = chromeDriver.getWindowHandle();
+            while (isSetupRunning && System.currentTimeMillis()-time0 < SETUP_TIMEOUT) {
+                for (String handle : chromeDriver.getWindowHandles()) {
+                    if (handle.equals(initialHandle)) {
+                        continue;
+                    }
+                    chromeDriver.switchTo().window(handle).close();
+                }
+            }
+            chromeDriver.switchTo().window(initialHandle);
+            chromeDriver.quit();
+            log.info("cookie setup completed");
+        } catch (RuntimeException e){
+            log.error("setup",e);
+            try {
+                chromeDriver.close();
+            } catch (RuntimeException r){
+                log.error("setup",r);
+            }
+        }
+        isSetupRunning=false;
+    }
+
+    public static boolean canSetup(){
+        return !isSetupRunning;
+    }
+
+    public static boolean canDownload(){
+        return canDownload;
+    }
+
+    public static void completeSetup(){
+        log.info("setting up cookies");
+        isSetupRunning=false;
+    }
+
+    public static void deleteCookies() throws IOException {
+        if (seleniumProfile!=null)
+            FileUtils.deleteDirectory(new File(seleniumProfile));
+    }
+
     public static void download(String[] args, BiConsumer<Process,BufferedReader> processOutput,
+                                ChromeDriver driver, BrowserUpProxy pr) {
+        if (!canDownload()){
+            throw new IllegalStateException("downloads are currently unavailable");
+        }
+        canDownload=false;
+        try {
+            initiateDownload(args,processOutput,driver,pr);
+        } catch (RuntimeException | IOException | InterruptedException e) {
+            canDownload=true;
+            throw new RuntimeException(e);
+        }
+        canDownload=true;
+    }
+
+    private static void initiateDownload(String[] args, BiConsumer<Process,BufferedReader> processOutput,
                                 ChromeDriver driver, BrowserUpProxy pr)
             throws InterruptedException, IOException {
 
@@ -101,7 +189,7 @@ public class VideoDownloader {
 
         BrowserUpProxy proxy = pr==null?setupProxy():pr;
         Proxy seleniumProxy = ClientUtil.createSeleniumProxy(proxy);
-        ChromeDriver chromeDriver = driver==null?setupDriver(seleniumProxy):driver;
+        ChromeDriver chromeDriver = driver==null?setupDriver(seleniumProxy, seleniumProfile, true):driver;
 
         chromeDriver.get(webpageUrl);
 
@@ -151,6 +239,7 @@ public class VideoDownloader {
 
         Har har = proxy.getHar();
         proxy.stop();
+        canDownload=true;
         Thread.sleep(timeout);
 
         ByteArrayOutputStream o = new ByteArrayOutputStream();
@@ -204,6 +293,7 @@ public class VideoDownloader {
         for (String handle:chromeDriver.getWindowHandles()){
             chromeDriver.switchTo().window(handle).close();
         }
+        chromeDriver.quit();
         assert youtubeDl.waitFor()==0;
         activeDownloads.remove(youtubeDl);
     }
