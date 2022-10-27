@@ -75,7 +75,7 @@ public class VideoDownloader {
         options.addArguments("--start-maximized");
         //options.addExtensions(new File("./adblock.crx"));
         //options.addArguments("--disable-popup-blocking");
-        //options.addArguments("--headless");
+        options.addArguments("--headless");
 
         ChromeDriver chromeDriver = new ChromeDriver(options);
 
@@ -127,23 +127,27 @@ public class VideoDownloader {
             } catch (RuntimeException ignored){}
         }
 
-        new WebDriverWait(chromeDriver, Duration.ofMillis(loops*timeout))
+        new WebDriverWait(chromeDriver, Duration.ofMillis((loops-i)*timeout))
                 .until(d->d.findElements(By.tagName("iframe")));
 
-        WebElement iframe = chromeDriver.findElements(By.tagName("iframe")).get(0);
-
-        String iframeSource = iframe.getAttribute("src");
-        if (iframeSource!=null)
-            log.info(iframeSource);
-
         try {
-            actions.moveToElement(iframe, 10, 25)
-                    .click().build().perform();
-        } catch (RuntimeException e){
-            e.printStackTrace();
-        }
+            WebElement iframe = chromeDriver.findElements(By.tagName("iframe")).get(0);
 
-        Thread.sleep((loops-i) * timeout);
+            String iframeSource = iframe.getAttribute("src");
+            if (iframeSource != null)
+                log.info(iframeSource);
+
+            try {
+                actions.moveToElement(iframe, 10, 25)
+                        .click().build().perform();
+            } catch (RuntimeException e) {
+                e.printStackTrace();
+            }
+
+            Thread.sleep((loops-i) * timeout);
+        } catch (IndexOutOfBoundsException e){
+            log.error("iframe element not found. webpage: "+webpageUrl);
+        }
 
         Har har = proxy.getHar();
         proxy.stop();
