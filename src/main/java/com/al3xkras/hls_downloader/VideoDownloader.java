@@ -117,7 +117,10 @@ public abstract class VideoDownloader {
         if (!canSetup()){
             throw new IllegalStateException("setup is unavailable");
         }
-        ChromeDriver chromeDriver = setupDriver(null, seleniumProfile, false);
+
+        BrowserUpProxy proxy =setupProxy();
+        Proxy seleniumProxy = ClientUtil.createSeleniumProxy(proxy);
+        ChromeDriver chromeDriver = setupDriver(seleniumProxy, seleniumProfile, false);
 
         chromeDriver.get(webpageUrl);
         long time0 = System.currentTimeMillis();
@@ -143,6 +146,7 @@ public abstract class VideoDownloader {
                 log.error("setup",r);
             }
         }
+        proxy.stop();
         isSetupRunning=false;
     }
 
@@ -189,7 +193,7 @@ public abstract class VideoDownloader {
 
         BrowserUpProxy proxy = pr==null?setupProxy():pr;
         Proxy seleniumProxy = ClientUtil.createSeleniumProxy(proxy);
-        ChromeDriver chromeDriver = driver==null?setupDriver(seleniumProxy, seleniumProfile, true):driver;
+        ChromeDriver chromeDriver = driver==null?setupDriver(seleniumProxy, seleniumProfile, false):driver;
 
         chromeDriver.get(webpageUrl);
 
