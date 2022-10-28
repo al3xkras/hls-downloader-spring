@@ -273,6 +273,7 @@ public abstract class VideoDownloader {
         } else if (!videoUrls.isEmpty()){
             videoUrl=videoUrls.get(videoUrls.size()-1).toString();
         } else {
+            chromeDriver.quit();
             log.error("unable to download: no video source found.");
             return;
         }
