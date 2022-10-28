@@ -9,9 +9,7 @@ import com.google.common.collect.ImmutableMap;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SerializationUtils;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Cookie;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -21,18 +19,14 @@ import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,7 +43,7 @@ public abstract class VideoDownloader {
             M3U8,
             MP4
     );
-    private static final long timeout = 1000L;
+    private static final long CLICK_TIMEOUT = 1000L;
     private static final long SETUP_TIMEOUT = 60000;
     private static final int loops = 10;
 
@@ -123,10 +117,10 @@ public abstract class VideoDownloader {
         ChromeDriver chromeDriver = setupDriver(seleniumProxy, seleniumProfile, false);
 
         chromeDriver.get(webpageUrl);
+        String initialHandle = chromeDriver.getWindowHandle();
         long time0 = System.currentTimeMillis();
         isSetupRunning=true;
         try {
-            String initialHandle = chromeDriver.getWindowHandle();
             while (isSetupRunning && System.currentTimeMillis()-time0 < SETUP_TIMEOUT) {
                 for (String handle : chromeDriver.getWindowHandles()) {
                     if (handle.equals(initialHandle)) {
@@ -193,18 +187,18 @@ public abstract class VideoDownloader {
 
         BrowserUpProxy proxy = pr==null?setupProxy():pr;
         Proxy seleniumProxy = ClientUtil.createSeleniumProxy(proxy);
-        ChromeDriver chromeDriver = driver==null?setupDriver(seleniumProxy, seleniumProfile, false):driver;
+        ChromeDriver chromeDriver = driver==null?setupDriver(seleniumProxy, seleniumProfile, true):driver;
 
         chromeDriver.get(webpageUrl);
+        String initialHandle = chromeDriver.getWindowHandle();
 
-        WebDriverWait wait = new WebDriverWait(chromeDriver, Duration.ofMillis(timeout));
+        WebDriverWait wait = new WebDriverWait(chromeDriver, Duration.ofMillis(CLICK_TIMEOUT));
         Actions actions = new Actions(chromeDriver);
         int i;
         for (i=0; i<loops || chromeDriver.getWindowHandles().size()>1; i++){
             actions.moveToElement(chromeDriver.findElement(By.tagName("body")), 0, 0);
             actions.moveByOffset(10, 10).click().build().perform();
             if (chromeDriver.getWindowHandles().size()>1){
-                String initialHandle = chromeDriver.getWindowHandle();
                 for (String handle:chromeDriver.getWindowHandles()){
                     if (handle.equals(initialHandle)){
                         continue;
@@ -219,7 +213,7 @@ public abstract class VideoDownloader {
             } catch (RuntimeException ignored){}
         }
 
-        new WebDriverWait(chromeDriver, Duration.ofMillis((loops-i)*timeout))
+        new WebDriverWait(chromeDriver, Duration.ofMillis((loops-i)* CLICK_TIMEOUT))
                 .until(d->d.findElements(By.tagName("iframe")));
 
         try {
@@ -236,7 +230,7 @@ public abstract class VideoDownloader {
                 e.printStackTrace();
             }
 
-            Thread.sleep((loops-i) * timeout);
+            Thread.sleep((loops-i) * CLICK_TIMEOUT);
         } catch (IndexOutOfBoundsException e){
             log.error("iframe element not found. webpage: "+webpageUrl);
         }
@@ -244,7 +238,7 @@ public abstract class VideoDownloader {
         Har har = proxy.getHar();
         proxy.stop();
         canDownload=true;
-        Thread.sleep(timeout);
+        Thread.sleep(CLICK_TIMEOUT);
 
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         har.writeTo(new PrintWriter(o));

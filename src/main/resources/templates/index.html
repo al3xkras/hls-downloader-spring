@@ -7,7 +7,7 @@
 <body>
 <form th:object="${videoDTO}" action="/process" method="post">
     <label for="url">Video URL: </label>
-    <input type="text" name="url" id="url" th:field="*{url}">
+    <input type="text" name="url" id="url" th:field="*{url}" autocomplete="off">
     <br/><br/>
     <label for="name">Output file: </label>
     <input type="text" name="name" id="name" th:field="*{filename}">
